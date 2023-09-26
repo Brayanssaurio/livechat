@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html >
+    <head>
+        <title>WebSocket Chat</title>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <form id="authForm">
+            <label for="username">Nombre de Usuario:</label>
+            <input type="text" id="username" required />
+            <button type="submit">Conectar</button>
+        </form>
+
+
+        <input type="text" id="messageInput" placeholder="Escribe un mensaje..." />
+        <select name="Usuarios" id="usersList">
+            <option value="">--Selecciona un destinatario--</option>
+        </select>
+        <button onclick="sendMessage()">Enviar</button>
+        <ul id="messageList"></ul>
+
+        <script>
+            var connection = false;
+            let usernameInput = document.getElementById("username");
+            let messageInput = document.getElementById("messageInput");
+            let messageList = document.getElementById("messageList");
+            let usersList = document.getElementById("usersList");
+            let socket;
+
+            const authForm = document.getElementById("authForm");
+            authForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                const username = "/name " + document.getElementById("username").value;
+
+                if (connection === false) {
+                    socket = new WebSocket("ws://192.168.100.123:8080/AppWebTest01/chat");
+
+                    socket.onopen = function () {
+                        socket.send(username);
+                    };
+                    connection = true;
+                } else {
+                    socket.send(username);
+                }
+
+                socket.onmessage = function (event) {
+                    onMessage(event);
+                };
+
+                socket.onclose = function (event) {
+                    if (event.wasClean) {
+                        // La conexión se cerró de manera limpia (sin errores)
+                        console.log(`La conexión se cerró de manera limpia, código: ${event.code}, razón: ${event.reason}`);
+                    } else {
+                        // La conexión se cerró debido a un error
+                        console.error(`La conexión se cerró debido a un error.`);
+                    }
+                    // Actualizar la lista de usuarios (puedes proporcionar el nombre del usuario que se desconectó)
+                    reporcesLiverUsers(JSON.parse(event.data));
+                };
+
+            });
+
+            function sendMessage() {
+                if (connection) {
+                    const message = messageInput.value;
+                    var sendMessage = {
+                        from: usernameInput.value,
+                        to: usersList.value,
+                        message: message
+                    };
+                    var jsonString = JSON.stringify(sendMessage);
+                    
+                    const listItem = document.createElement("li");
+                    listItem.textContent = sendMessage.from + ": " + sendMessage.message;
+                    messageList.appendChild(listItem);
+                    console.log(jsonString);
+                    socket.send(jsonString);
+                }
+            }
+
+
+
+            function onMessage(event) {
+                const jsonData = event.data;
+                
+                const objetoJSON = JSON.parse(jsonData);
+                
+                reporcesLiverUsers(objetoJSON);
+                
+                if(objetoJSON.idsession === objetoJSON.sendmessage.to){
+                    const listItem = document.createElement("li");
+                    listItem.textContent = objetoJSON.sendmessage.from + ": " + objetoJSON.sendmessage.message;
+                    messageList.appendChild(listItem);
+                }
+            }
+
+            function reporcesLiverUsers(objetoJSON) {
+                var liveUserSelected = usersList.value;
+                usersList.innerHTML = "";
+
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = "--Selecciona un destinatario--";
+                usersList.appendChild(option);
+
+                objetoJSON.liveusers.forEach(user => {
+                    const option = document.createElement("option");
+                    option.value = user.idsession;
+                    option.textContent = user.username;
+                    usersList.appendChild(option);
+                });
+
+                var valorExiste = Array.from(usersList.options).some(function (option) {
+                    return option.value === liveUserSelected;
+                });
+
+                if (valorExiste) {
+                    // El valor seleccionado aún existe en las nuevas opciones
+                    usersList.value = liveUserSelected;
+                } else {
+                    // El valor seleccionado no existe en las nuevas opciones
+                    // Puedes tomar medidas adicionales aquí si es necesario
+                }
+            }
+        </script>
+    </body>
+</html>
